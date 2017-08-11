@@ -28,4 +28,6 @@
     <string name="error_unsupported_audio">Media includes audio tracks, but none are playable by this device</string>
     <string name="storage_permission_denied">Permission to access storage was denied</string>
     <string name="sample_list_load_error">One or more sample lists failed to load</string>
+    <string name="sample_app_version_base_text">Sample App v</string>
+    <string name="polynet_sdk_version_base_text">PolyNet SDK v</string>
 </resources>

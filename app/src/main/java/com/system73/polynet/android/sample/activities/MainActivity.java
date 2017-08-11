@@ -11,6 +11,7 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import com.system73.polynet.android.sample.BuildConfig;
 import com.system73.polynet.android.sample.R;
 import com.system73.polynet.android.sample.model.Channel;
 import com.system73.polynet.android.sample.persistence.ChannelDB;
@@ -36,6 +37,13 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        TextView sampleAppVersionTextView = (TextView) findViewById(R.id.polynet_sample_app_version);
+        sampleAppVersionTextView.setText(new StringBuilder().append(getString(R.string.sample_app_version_base_text)).append(BuildConfig.VERSION_NAME).toString());
+
+        TextView polyNetSdkVersionTextView = (TextView) findViewById(R.id.polynet_sdk_version);
+        polyNetSdkVersionTextView.setText(new StringBuilder().append(getString(R.string.polynet_sdk_version_base_text)).append(com.system73.polynet.android.sdk.BuildConfig.VERSION_NAME).toString());
+
+
         TextView companyUrlTextView =(TextView)findViewById(R.id.company_url_text_view);
         companyUrlTextView.setClickable(true);
         companyUrlTextView.setMovementMethod(LinkMovementMethod.getInstance());
@@ -45,7 +53,7 @@ public class MainActivity extends AppCompatActivity {
         channelIdText = (EditText) findViewById(R.id.channel_id);
         manifestUrlText = (EditText) findViewById(R.id.manifest_url_text);
         backendUrlText = (EditText) findViewById(R.id.infrastructure_ws_url_text);
-        stunServerUrlText = (EditText) findViewById(R.id.stun_server_uri);
+        stunServerUrlText = (EditText) findViewById(R.id.stun_server_url);
 
         channelHelper = new ChannelSQLiteHelper(this, "ChannelPersistence", null, SQL_DATABASE_VERSION);
         channelDB = new ChannelDB(channelHelper);
@@ -76,7 +84,7 @@ public class MainActivity extends AppCompatActivity {
 
         Intent mpdIntent = new Intent(this,PlayerActivity.class)
                 .setData(Uri.parse(manifestUrl))
-                .putExtra(PlayerActivity.STUN_SERVER_URI, stunServerUrl)
+                .putExtra(PlayerActivity.STUN_SERVER_URL, stunServerUrl)
                 .putExtra(PlayerActivity.CHANNEL_ID, channelId)
                 .putExtra(PlayerActivity.BACKEND_URL, backendUrl);
         startActivity(mpdIntent);
@@ -112,7 +120,7 @@ public class MainActivity extends AppCompatActivity {
             valid = false;
         }
         if (stunServerUrl.isEmpty()) {
-            Log.e(TAG, "playerFailed [Empty field: STUN SERVER URI]");
+            Log.e(TAG, "playerFailed [Empty field: STUN SERVER URL]");
             valid = false;
         }
         return valid;

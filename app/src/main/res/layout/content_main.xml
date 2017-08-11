@@ -61,10 +61,10 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="STUN SERVER URI"/>
+                android:text="STUN SERVER URL"/>
 
             <EditText
-                android:id="@+id/stun_server_uri"
+                android:id="@+id/stun_server_url"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
                 android:hint="stun:0.0.0.0:3478"/>
@@ -99,11 +99,19 @@
                 android:text="system73.com"/>
 
             <TextView
-                android:id="@+id/version"
+                android:id="@+id/polynet_sample_app_version"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                android:text="1.0.0"
+                android:text="@string/sample_app_version_base_text"
+                android:layout_gravity="center"/>
+
+            <TextView
+                android:id="@+id/polynet_sdk_version"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="@string/polynet_sdk_version_base_text"
                 android:layout_gravity="center"/>
 
             <TextView

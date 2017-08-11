@@ -74,7 +74,7 @@ public class PlayerActivity extends Activity {
 
     // For use within demo app code.
     public static final String CHANNEL_ID = "channel_id";
-    public static final String STUN_SERVER_URI = "stun_server_uri";
+    public static final String STUN_SERVER_URL = "stun_server_url";
     public static final String BACKEND_URL = "backend_url";
 
     public static final int BUFFER_MIN = 30000;
@@ -183,14 +183,14 @@ public class PlayerActivity extends Activity {
         Uri manifestUri = intent.getData();
         String backendUrl = intent.getStringExtra(BACKEND_URL);
         String channelId = intent.getStringExtra(CHANNEL_ID);
-        String stunServerUri = intent.getStringExtra(STUN_SERVER_URI);
+        String stunServerUrl = intent.getStringExtra(STUN_SERVER_URL);
         if (polyNet == null) {
             // Connect to PolyNet
             PolyNetConfiguration configuration = PolyNetConfiguration.builder()
                     .setManifestUrl(manifestUri.toString())
                     .setPolyNetBackendUrl(backendUrl)
                     .setChannelId(Integer.parseInt(channelId))
-                    .addStunServerUri(stunServerUri)
+                    .addStunServerUrl(stunServerUrl)
                     .setContext(this)
                     .build();
 
