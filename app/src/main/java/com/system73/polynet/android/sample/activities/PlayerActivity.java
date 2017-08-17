@@ -255,13 +255,12 @@ public class PlayerActivity extends Activity {
             TrackSelection.Factory adaptiveTrackSelectionFactory =
                     new AdaptiveTrackSelection.Factory(BANDWIDTH_METER);
             trackSelector = new DefaultTrackSelector(adaptiveTrackSelectionFactory);
-            eventLogger = new EventLogger(trackSelector,polyNet);
+            eventLogger = new EventLogger(trackSelector, polyNet);
             DefaultLoadControl loadControl = new DefaultLoadControl(new DefaultAllocator(true, C.DEFAULT_BUFFER_SEGMENT_SIZE), BUFFER_MIN, BUFFER_MAX,
                     DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS, DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS);
             player = ExoPlayerFactory.newSimpleInstance(new DefaultRenderersFactory(this), trackSelector, loadControl);
             player.addListener(eventLogger);
             MediaSource mediaSource = new HlsMediaSource(contentUri, buildDataSourceFactory(true), mainHandler, eventLogger);
-            player.seekTo(playerPosition);
             player.prepare(mediaSource);
             simpleExoPlayerView.setPlayer(player);
             player.setPlayWhenReady(shouldAutoPlay);
