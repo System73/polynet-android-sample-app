@@ -38,13 +38,19 @@ import android.view.KeyEvent;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultLoadControl;
 import com.google.android.exoplayer2.DefaultRenderersFactory;
+import com.google.android.exoplayer2.ExoPlaybackException;
+import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.ExoPlayerFactory;
+import com.google.android.exoplayer2.PlaybackParameters;
 import com.google.android.exoplayer2.SimpleExoPlayer;
+import com.google.android.exoplayer2.Timeline;
 import com.google.android.exoplayer2.source.MediaSource;
+import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.source.hls.HlsMediaSource;
 import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.trackselection.TrackSelection;
+import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.ui.SimpleExoPlayerView;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultAllocator;
@@ -185,20 +191,25 @@ public class PlayerActivity extends Activity {
         String channelId = intent.getStringExtra(CHANNEL_ID);
         String stunServerUrl = intent.getStringExtra(STUN_SERVER_URL);
         if (polyNet == null) {
-            // Connect to PolyNet
-            PolyNetConfiguration configuration = PolyNetConfiguration.builder()
-                    .setManifestUrl(manifestUri.toString())
-                    .setPolyNetBackendUrl(backendUrl)
-                    .setChannelId(Integer.parseInt(channelId))
-                    .addStunServerUrl(stunServerUrl)
+            try {
+                // Connect to PolyNet
+                PolyNetConfiguration configuration = PolyNetConfiguration.builder()
+                    .setManifestUrl(manifestUri.toString().trim())
+                    .setPolyNetBackendUrl(backendUrl.trim())
+                    .setChannelId(Integer.parseInt(channelId.trim()))
+                    .addStunServerUrl(stunServerUrl.trim())
                     .setContext(this)
                     .build();
 
-            polyNet = new PolyNet(configuration);
-            polyNet.setConnectionListener(polyNetConnectionListener);
-            polyNet.setMetricsRequestListener(metricsRequestListener);
-            polyNet.setDebugMode(true);
-            polyNet.connect();
+                polyNet = new PolyNet(configuration);
+                polyNet.setConnectionListener(polyNetConnectionListener);
+                polyNet.setMetricsRequestListener(metricsRequestListener);
+                polyNet.setDebugMode(true);
+                polyNet.connect();
+            } catch (IllegalArgumentException e) {
+                Log.e(TAG, "Error detected in the input parameters.", e);
+                this.finish();
+            }
         }
     }
 
@@ -245,6 +256,7 @@ public class PlayerActivity extends Activity {
                 contentUri = Uri.parse(polyNet.getPolyNetManifestUrl());
                 if (!maybeRequestPermission()) {
                     initializePlayer();
+                    playerAddListener();
                 }
             }
         });
@@ -265,6 +277,52 @@ public class PlayerActivity extends Activity {
             simpleExoPlayerView.setPlayer(player);
             player.setPlayWhenReady(shouldAutoPlay);
         }
+    }
+
+    private void playerAddListener() {
+        player.addListener(new ExoPlayer.EventListener() {
+            @Override
+            public void onTimelineChanged(Timeline timeline, Object manifest) {
+
+            }
+
+            @Override
+            public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
+
+            }
+
+            @Override
+            public void onLoadingChanged(boolean isLoading) {
+
+            }
+
+            @Override
+            public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
+
+            }
+
+            @Override
+            public void onPlayerError(ExoPlaybackException error) {
+                switch (error.type) {
+                    case ExoPlaybackException.TYPE_SOURCE:
+                        //Restart the player
+                        releasePlayer();
+                        active = true;
+                        onShown();
+                        break;
+                }
+            }
+
+            @Override
+            public void onPositionDiscontinuity() {
+
+            }
+
+            @Override
+            public void onPlaybackParametersChanged(PlaybackParameters playbackParameters) {
+
+            }
+        });
     }
 
     private void releasePlayer() {

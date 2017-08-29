@@ -65,11 +65,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void play (View view) {
-
-        String channelId = channelIdText.getText().toString();
-        String manifestUrl = manifestUrlText.getText().toString();
-        String backendUrl = backendUrlText.getText().toString();
-        String stunServerUrl = stunServerUrlText.getText().toString();
+        String channelId = channelIdText.getText().toString().trim();
+        String manifestUrl = manifestUrlText.getText().toString().trim();
+        String backendUrl = backendUrlText.getText().toString().trim();
+        String stunServerUrl = stunServerUrlText.getText().toString().trim();
 
         if (checkFieldsAreValid(channelId, manifestUrl, backendUrl, stunServerUrl)) {
             channelDB.setChannel(channel, Integer.parseInt(channelId), manifestUrl, backendUrl, stunServerUrl);
@@ -109,6 +108,15 @@ public class MainActivity extends AppCompatActivity {
 
         if (channelId.isEmpty()) {
             Log.e(TAG, "playerFailed [Empty field: CHANNEL ID]");
+            valid = false;
+        }
+        try {
+            if (Integer.parseInt(channelId) < 0) {
+                Log.e(TAG, "playerFailed [CHANNEL ID must not be a negative integer number]");
+                valid = false;
+            }
+        } catch (NumberFormatException e) {
+            Log.e(TAG, "playerFailed [CHANNEL ID must be an integer number]");
             valid = false;
         }
         if (manifestUrl.isEmpty()) {
