@@ -34,10 +34,6 @@
                 <data android:scheme="file" />
             </intent-filter>
         </activity>
-        <application
-            android:name=".AboutActivity"
-            android:label="@string/title_about_activity">
-        </application>
     </application>
 
 </manifest>

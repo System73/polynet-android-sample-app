@@ -23,11 +23,8 @@
  */
 package com.system73.polynet.android.sample.activities;
 
-import android.Manifest;
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -39,18 +36,14 @@ import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultLoadControl;
 import com.google.android.exoplayer2.DefaultRenderersFactory;
 import com.google.android.exoplayer2.ExoPlaybackException;
-import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.ExoPlayerFactory;
-import com.google.android.exoplayer2.PlaybackParameters;
+import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.SimpleExoPlayer;
-import com.google.android.exoplayer2.Timeline;
 import com.google.android.exoplayer2.source.MediaSource;
-import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.source.hls.HlsMediaSource;
 import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.trackselection.TrackSelection;
-import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.ui.SimpleExoPlayerView;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultAllocator;
@@ -78,10 +71,10 @@ public class PlayerActivity extends Activity {
 
     public static final String TAG = "PlayerActivity";
 
-    // For use within demo app code.
     public static final String CHANNEL_ID = "channel_id";
-    public static final String STUN_SERVER_URL = "stun_server_url";
     public static final String BACKEND_URL = "backend_url";
+    public static final String BACKEND_METRICS_URL = "backend_metrics_url";
+    public static final String STUN_SERVER_URL = "stun_server_url";
 
     public static final int BUFFER_MIN = 30000;
     public static final int BUFFER_MAX = 30000;
@@ -95,7 +88,6 @@ public class PlayerActivity extends Activity {
     }
 
     private Handler mainHandler;
-    private EventLogger eventLogger;
     private SimpleExoPlayerView simpleExoPlayerView;
 
     private SimpleExoPlayer player = null;
@@ -105,9 +97,7 @@ public class PlayerActivity extends Activity {
 
     private Uri contentUri;
 
-    private long playerPosition;
-
-    private String userAgent = "ExoPlayerPolyNetDemo";
+    private String userAgent = "ExoPlayerPolyNetSample";
 
     private PolyNet polyNet;
 
@@ -133,37 +123,10 @@ public class PlayerActivity extends Activity {
         simpleExoPlayerView.requestFocus();
     }
 
-    // Permission management methods
-
-    /**
-     * Checks whether it is necessary to ask for permission to read storage. If necessary, it also
-     * requests permission.
-     *
-     * @return true if a permission request is made. False if it is not necessary.
-     */
-    @TargetApi(23)
-    private boolean maybeRequestPermission() {
-        if (requiresPermission(contentUri)) {
-            requestPermissions(new String[] {Manifest.permission.READ_EXTERNAL_STORAGE}, 0);
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    @TargetApi(23)
-    private boolean requiresPermission(Uri uri) {
-        return Util.SDK_INT >= 23
-                && Util.isLocalFileUri(uri)
-                && checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED;
-    }
-
     @Override
     public void onNewIntent(Intent intent) {
         releasePlayer();
         shouldAutoPlay = true;
-        playerPosition = 0;
         setIntent(intent);
     }
 
@@ -187,16 +150,18 @@ public class PlayerActivity extends Activity {
     private void onShown() {
         Intent intent = getIntent();
         Uri manifestUri = intent.getData();
-        String backendUrl = intent.getStringExtra(BACKEND_URL);
         String channelId = intent.getStringExtra(CHANNEL_ID);
+        String backendUrl = intent.getStringExtra(BACKEND_URL);
+        String backedMetricsUrl = intent.getStringExtra(BACKEND_METRICS_URL);
         String stunServerUrl = intent.getStringExtra(STUN_SERVER_URL);
         if (polyNet == null) {
             try {
                 // Connect to PolyNet
                 PolyNetConfiguration configuration = PolyNetConfiguration.builder()
                     .setManifestUrl(manifestUri.toString().trim())
-                    .setPolyNetBackendUrl(backendUrl.trim())
                     .setChannelId(Integer.parseInt(channelId.trim()))
+                    .setPolyNetBackendUrl(backendUrl.trim())
+                    .setPolyNetBackendMetricsUrl(backedMetricsUrl.trim())
                     .addStunServerUrl(stunServerUrl.trim())
                     .setContext(this)
                     .build();
@@ -248,79 +213,73 @@ public class PlayerActivity extends Activity {
 
     // Internal methods
 
-    private void handleConnectSuccess() {
+    private void handleConnectSuccess(final String polyNetManifestUrl) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                // When PolyNet is connected, use polyNet.getPolyNetManifestUrl() to initialize the player
-                contentUri = Uri.parse(polyNet.getPolyNetManifestUrl());
-                if (!maybeRequestPermission()) {
-                    initializePlayer();
-                    playerAddListener();
-                }
+                // When PolyNet is connected, use the PolyNetManifestUrl to initialize the player
+                Uri contentUri = Uri.parse(polyNetManifestUrl);
+                initializePlayer(contentUri);
             }
         });
     }
 
-    private void initializePlayer() {
+    private void initializePlayer(final Uri contentUri) {
         if (player == null) {
             TrackSelection.Factory adaptiveTrackSelectionFactory =
                     new AdaptiveTrackSelection.Factory(BANDWIDTH_METER);
             trackSelector = new DefaultTrackSelector(adaptiveTrackSelectionFactory);
-            eventLogger = new EventLogger(trackSelector, polyNet);
             DefaultLoadControl loadControl = new DefaultLoadControl(new DefaultAllocator(true, C.DEFAULT_BUFFER_SEGMENT_SIZE), BUFFER_MIN, BUFFER_MAX,
                     DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS, DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS);
             player = ExoPlayerFactory.newSimpleInstance(new DefaultRenderersFactory(this), trackSelector, loadControl);
-            player.addListener(eventLogger);
-            MediaSource mediaSource = new HlsMediaSource(contentUri, buildDataSourceFactory(true), mainHandler, eventLogger);
+            addPlayBackStartedListener();
+            setDroppedFramesListener();
+            addPlayerErrorListener();
+            MediaSource mediaSource = new HlsMediaSource(contentUri, buildDataSourceFactory(true), mainHandler, new AdaptiveMediaSourceEventAdapter());
             player.prepare(mediaSource);
             simpleExoPlayerView.setPlayer(player);
             player.setPlayWhenReady(shouldAutoPlay);
         }
     }
 
-    private void playerAddListener() {
-        player.addListener(new ExoPlayer.EventListener() {
+    private void addPlayBackStartedListener() {
+        player.addListener(new PlayerEventAdapter() {
             @Override
-            public void onTimelineChanged(Timeline timeline, Object manifest) {
-
+            public void onPlayerStateChanged(boolean playWhenReady, int state) {
+                if (state == Player.STATE_READY) {
+                    if (polyNet != null) {
+                        polyNet.reportPlayBackStarted();
+                    }
+                }
             }
+        });
+    }
 
+    private void setDroppedFramesListener() {
+        player.setVideoDebugListener(new VideoRendererEventAdapter() {
             @Override
-            public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
-
+            public void onDroppedFrames(int count, long elapsed) {
+                for (int n = 0; n < count; n++) {
+                    if (polyNet != null) {
+                        polyNet.reportDroppedFrame();
+                    }
+                }
             }
+        });
+    }
 
-            @Override
-            public void onLoadingChanged(boolean isLoading) {
-
-            }
-
-            @Override
-            public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
-
-            }
-
+    private void addPlayerErrorListener() {
+        player.addListener(new PlayerEventAdapter() {
             @Override
             public void onPlayerError(ExoPlaybackException error) {
                 switch (error.type) {
                     case ExoPlaybackException.TYPE_SOURCE:
-                        //Restart the player
+                        // Restart the player
                         releasePlayer();
                         active = true;
                         onShown();
                         break;
                 }
-            }
-
-            @Override
-            public void onPositionDiscontinuity() {
-
-            }
-
-            @Override
-            public void onPlaybackParametersChanged(PlaybackParameters playbackParameters) {
-
             }
         });
     }
@@ -329,11 +288,9 @@ public class PlayerActivity extends Activity {
         if (player != null) {
             active = false;
             shouldAutoPlay = player.getPlayWhenReady();
-            playerPosition = player.getCurrentPosition();
             player.release();
             player = null;
             trackSelector = null;
-            eventLogger = null;
         }
         if (polyNet != null) {
             polyNet.dispose();
@@ -366,7 +323,7 @@ public class PlayerActivity extends Activity {
         @Override
         public void onConnected(PolyNet polyNet, String polyNetManifestUrl) {
             // When PolyNet is connected, we can initialize the player with polyNetManifestUrl or with polyNet.getPolyNetManifestUrl()
-            handleConnectSuccess();
+            handleConnectSuccess(polyNet.getPolyNetManifestUrl());
         }
 
         @Override

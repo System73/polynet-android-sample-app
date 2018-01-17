@@ -6,6 +6,7 @@ public class Channel {
     private int channelId;
     private String manifestUrl;
     private String backendUrl;
+    private String backendMetricsUrl;
     private String stunServerUrl;
 
     public void setId(int id) {
@@ -22,6 +23,10 @@ public class Channel {
 
     public void setBackendUrl(String backendUrl) {
         this.backendUrl = backendUrl;
+    }
+
+    public void setBackendMetricsUrl(String backendMetricsUrl) {
+        this.backendMetricsUrl = backendMetricsUrl;
     }
 
     public void setStunServerUrl(String stunServerUrl) {
@@ -42,6 +47,10 @@ public class Channel {
 
     public String getBackendUrl() {
         return backendUrl;
+    }
+
+    public String getBackendMetricsUrl() {
+        return backendMetricsUrl;
     }
 
     public String getStunServerUrl() {
