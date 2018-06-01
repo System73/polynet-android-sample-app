@@ -45,40 +45,18 @@
                 android:id="@+id/channel_id"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:hint="0"/>
+                android:hint="Channel Id" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="BACKEND URL"/>
+                android:text="API KEY" />
 
             <EditText
-                android:id="@+id/backend_url"
+                android:id="@+id/api_key"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:hint="ws://0.0.0.0:8888/ws"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="BACKEND METRICS URL"/>
-
-            <EditText
-                android:id="@+id/backend_metrics_url"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:hint="http://0.0.0.0:8081/metrics"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="STUN SERVER URL"/>
-
-            <EditText
-                android:id="@+id/stun_server_url"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:hint="stun:0.0.0.0:3478"/>
+                android:hint="ew0KICAiaGFzaGVkX2tleSI6ICI5S0ItbF8tZj..." />
 
             <Button
                 android:id="@+id/button"

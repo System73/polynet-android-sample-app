@@ -72,9 +72,7 @@ public class PlayerActivity extends Activity {
     public static final String TAG = "PlayerActivity";
 
     public static final String CHANNEL_ID = "channel_id";
-    public static final String BACKEND_URL = "backend_url";
-    public static final String BACKEND_METRICS_URL = "backend_metrics_url";
-    public static final String STUN_SERVER_URL = "stun_server_url";
+    public static final String API_KEY = "api_key";
 
     public static final int BUFFER_MIN = 30000;
     public static final int BUFFER_MAX = 30000;
@@ -151,18 +149,14 @@ public class PlayerActivity extends Activity {
         Intent intent = getIntent();
         Uri manifestUri = intent.getData();
         String channelId = intent.getStringExtra(CHANNEL_ID);
-        String backendUrl = intent.getStringExtra(BACKEND_URL);
-        String backedMetricsUrl = intent.getStringExtra(BACKEND_METRICS_URL);
-        String stunServerUrl = intent.getStringExtra(STUN_SERVER_URL);
+        String apiKey = intent.getStringExtra(API_KEY);
         if (polyNet == null) {
             try {
                 // Connect to PolyNet
                 PolyNetConfiguration configuration = PolyNetConfiguration.builder()
                     .setManifestUrl(manifestUri.toString().trim())
-                    .setChannelId(Integer.parseInt(channelId.trim()))
-                    .setPolyNetBackendUrl(backendUrl.trim())
-                    .setPolyNetBackendMetricsUrl(backedMetricsUrl.trim())
-                    .addStunServerUrl(stunServerUrl.trim())
+                    .setChannelId(channelId.trim())
+                    .setApiKey(apiKey.trim())
                     .setContext(this)
                     .build();
 

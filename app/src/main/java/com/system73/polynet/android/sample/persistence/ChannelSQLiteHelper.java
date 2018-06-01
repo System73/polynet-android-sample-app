@@ -8,11 +8,9 @@ public class ChannelSQLiteHelper extends SQLiteOpenHelper {
 
     private static final String channelSQL = "CREATE TABLE " + ChannelDB.CHANNELS_TABLE_NAME +
             " (" + ChannelDB.ID_COLUMN_NAME + " INTEGER PRIMARY KEY NOT NULL, " +
-            ChannelDB.CHANNEL_ID_COLUMN_NAME + " INTEGER NOT NULL, " +
+            ChannelDB.CHANNEL_ID_COLUMN_NAME + " TEXT NOT NULL, " +
             ChannelDB.MANIFEST_URL_COLUMN_NAME + " TEXT NOT NULL, " +
-            ChannelDB.BACKEND_URL_COLUMN_NAME + " TEXT NOT NULL, " +
-            ChannelDB.BACKEND_METRICS_URL_COLUMN_NAME + " TEXT NOT NULL, " +
-            ChannelDB.STUN_SERVER_URL_COLUMN_NAME + " TEXT NOT NULL)";
+            ChannelDB.API_KEY_COLUMN_NAME + " TEXT NOT NULL )";
 
     public ChannelSQLiteHelper(Context context, String name, SQLiteDatabase.CursorFactory factory, int version) {
         super(context, name, factory, version);

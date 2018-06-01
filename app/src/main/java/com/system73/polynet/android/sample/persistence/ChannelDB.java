@@ -11,7 +11,7 @@ public class ChannelDB {
 
     private static final String DATABASE_FILE_NAME = "ChannelPersistence";
 
-    private static final int DATABASE_VERSION = 2;
+    private static final int DATABASE_VERSION = 3;
 
     private static final int DEFAULT_ID = 1;
 
@@ -20,10 +20,7 @@ public class ChannelDB {
     static final String ID_COLUMN_NAME = "id";
     static final String CHANNEL_ID_COLUMN_NAME = "channelId";
     static final String MANIFEST_URL_COLUMN_NAME = "manifestUrl";
-    static final String BACKEND_URL_COLUMN_NAME = "backendUrl";
-    static final String BACKEND_METRICS_URL_COLUMN_NAME = "backendMetricsUrl";
-    static final String STUN_SERVER_URL_COLUMN_NAME = "stunServerUrl";
-
+    static final String API_KEY_COLUMN_NAME = "apiKey";
     private SQLiteDatabase db;
 
     public ChannelDB(Context context) {
@@ -31,14 +28,12 @@ public class ChannelDB {
         db = channelHelper.getWritableDatabase();
     }
 
-    public void setChannel(Channel channel, int channelId, String manifestUrl, String backendUrl, String backendMetricsUrl, String stunServerUrl) {
+    public void setChannel(Channel channel, String channelId, String manifestUrl, String apiKey) {
         if (db != null) {
             ContentValues newChannel = new ContentValues();
             newChannel.put(CHANNEL_ID_COLUMN_NAME, channelId);
             newChannel.put(MANIFEST_URL_COLUMN_NAME, manifestUrl);
-            newChannel.put(BACKEND_URL_COLUMN_NAME, backendUrl);
-            newChannel.put(BACKEND_METRICS_URL_COLUMN_NAME, backendMetricsUrl);
-            newChannel.put(STUN_SERVER_URL_COLUMN_NAME, stunServerUrl);
+            newChannel.put(API_KEY_COLUMN_NAME, apiKey);
 
             if (channel == null) {
                 newChannel.put(ID_COLUMN_NAME, DEFAULT_ID);
@@ -55,11 +50,9 @@ public class ChannelDB {
         if (cursor.moveToFirst()) {
             channel = new Channel();
             channel.setId(cursor.getInt(cursor.getColumnIndex(ID_COLUMN_NAME)));
-            channel.setChannelId(cursor.getInt(cursor.getColumnIndex(CHANNEL_ID_COLUMN_NAME)));
+            channel.setChannelId(cursor.getString(cursor.getColumnIndex(CHANNEL_ID_COLUMN_NAME)));
             channel.setManifestUrl(cursor.getString(cursor.getColumnIndex(MANIFEST_URL_COLUMN_NAME)));
-            channel.setBackendUrl(cursor.getString(cursor.getColumnIndex(BACKEND_URL_COLUMN_NAME)));
-            channel.setBackendMetricsUrl(cursor.getString(cursor.getColumnIndex(BACKEND_METRICS_URL_COLUMN_NAME)));
-            channel.setStunServerUrl(cursor.getString(cursor.getColumnIndex(STUN_SERVER_URL_COLUMN_NAME)));
+            channel.setApiKey(cursor.getString(cursor.getColumnIndex(API_KEY_COLUMN_NAME)));
         }
         return channel;
     }

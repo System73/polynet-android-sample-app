@@ -23,9 +23,7 @@ public class MainActivity extends AppCompatActivity {
 
     private EditText manifestUrlText;
     private EditText channelIdText;
-    private EditText backendUrlText;
-    private EditText backendMetricsUrlText;
-    private EditText stunServerUrlText;
+    private EditText apiKeyText;
 
     private ChannelDB channelDB;
 
@@ -48,9 +46,7 @@ public class MainActivity extends AppCompatActivity {
 
         manifestUrlText = (EditText) findViewById(R.id.manifest_url);
         channelIdText = (EditText) findViewById(R.id.channel_id);
-        backendUrlText = (EditText) findViewById(R.id.backend_url);
-        backendMetricsUrlText = (EditText) findViewById(R.id.backend_metrics_url);
-        stunServerUrlText = (EditText) findViewById(R.id.stun_server_url);
+        apiKeyText = (EditText) findViewById(R.id.api_key);
 
         channelDB = new ChannelDB(this);
 
@@ -63,17 +59,15 @@ public class MainActivity extends AppCompatActivity {
     public void play (View view) {
         String manifestUrl = manifestUrlText.getText().toString().trim();
         String channelId = channelIdText.getText().toString().trim();
-        String backendUrl = backendUrlText.getText().toString().trim();
-        String backendMetricsUrl = backendMetricsUrlText.getText().toString().trim();
-        String stunServerUrl = stunServerUrlText.getText().toString().trim();
+        String apiKey = apiKeyText.getText().toString().trim();
 
-        if (checkFieldsAreValid(manifestUrl, channelId, backendUrl, backendMetricsUrl, stunServerUrl)) {
-            channelDB.setChannel(channel, Integer.parseInt(channelId), manifestUrl, backendUrl, backendMetricsUrl, stunServerUrl);
-            launchVideoActivity(manifestUrl, channelId, backendUrl, backendMetricsUrl, stunServerUrl);
+        if (checkFieldsAreValid(manifestUrl, channelId, apiKey)) {
+            channelDB.setChannel(channel, channelId, manifestUrl, apiKey);
+            launchVideoActivity(manifestUrl, channelId, apiKey);
         }
     }
 
-    public void launchVideoActivity(String manifestUrl, String channelId, String backendUrl, String backendMetricsUrl, String stunServerUrl) {
+    public void launchVideoActivity(String manifestUrl, String channelId, String apiKey) {
         if (PlayerActivity.isActive()) {
             return;
         }
@@ -81,9 +75,7 @@ public class MainActivity extends AppCompatActivity {
         Intent mpdIntent = new Intent(this, PlayerActivity.class)
             .setData(Uri.parse(manifestUrl))
             .putExtra(PlayerActivity.CHANNEL_ID, channelId)
-            .putExtra(PlayerActivity.BACKEND_URL, backendUrl)
-            .putExtra(PlayerActivity.BACKEND_METRICS_URL, backendMetricsUrl)
-            .putExtra(PlayerActivity.STUN_SERVER_URL, stunServerUrl);
+            .putExtra(PlayerActivity.API_KEY, apiKey);
         startActivity(mpdIntent);
     }
 
@@ -91,9 +83,7 @@ public class MainActivity extends AppCompatActivity {
     private void setParametersFromStoredChannel() {
         manifestUrlText.setText(channel.getManifestUrl());
         channelIdText.setText(String.valueOf(channel.getChannelId()));
-        backendUrlText.setText(channel.getBackendUrl());
-        backendMetricsUrlText.setText(channel.getBackendMetricsUrl());
-        stunServerUrlText.setText(channel.getStunServerUrl());
+        apiKeyText.setText(channel.getApiKey());
     }
 
     @Override
@@ -102,7 +92,7 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
     }
 
-    private boolean checkFieldsAreValid(String manifestUrl, String channelId, String backendUrl, String backendMetricsUrl, String stunServerUrl) {
+    private boolean checkFieldsAreValid(String manifestUrl, String channelId, String apiKey) {
         boolean valid = true;
 
         if (manifestUrl.isEmpty()) {
@@ -115,28 +105,8 @@ public class MainActivity extends AppCompatActivity {
             valid = false;
         }
 
-        try {
-            if (Integer.parseInt(channelId) < 0) {
-                Log.e(TAG, "playerFailed [CHANNEL ID must be a positive integer number]");
-                valid = false;
-            }
-        } catch (NumberFormatException e) {
-            Log.e(TAG, "playerFailed [CHANNEL ID must be an integer number]");
-            valid = false;
-        }
-
-        if (backendUrl.isEmpty()) {
-            Log.e(TAG, "playerFailed [Empty field: BACKEND URL]");
-            valid = false;
-        }
-
-        if (backendMetricsUrl.isEmpty()) {
-            Log.e(TAG, "playerFailed [Empty field: BACKEND METRICS URL]");
-            valid = false;
-        }
-
-        if (stunServerUrl.isEmpty()) {
-            Log.e(TAG, "playerFailed [Empty field: STUN SERVER URL]");
+        if (apiKey.isEmpty()) {
+            Log.e(TAG, "playerFailed [Empty field: API KEY]");
             valid = false;
         }
 
