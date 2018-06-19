@@ -55,8 +55,8 @@ import com.google.android.exoplayer2.util.Util;
 import com.system73.polynet.android.sample.R;
 import com.system73.polynet.android.sdk.PolyNet;
 import com.system73.polynet.android.sdk.PolyNetConfiguration;
-import com.system73.polynet.android.sdk.PolyNetConnectionListener;
-import com.system73.polynet.android.sdk.PolyNetMetricsRequestListener;
+import com.system73.polynet.android.sdk.PolyNetListener;
+import com.system73.polynet.android.sdk.PolyNetMetrics;
 
 import java.net.CookieHandler;
 import java.net.CookieManager;
@@ -161,10 +161,17 @@ public class PlayerActivity extends Activity {
                     .build();
 
                 polyNet = new PolyNet(configuration);
-                polyNet.setConnectionListener(polyNetConnectionListener);
-                polyNet.setMetricsRequestListener(metricsRequestListener);
+
+                contentUri = Uri.parse(polyNet.getLocalManifestUrl());
+
                 polyNet.setDebugMode(true);
-                polyNet.connect();
+
+                polyNet.setListener(polyNetListener);
+                // New integration flow: Player can be initialized here, waiting for polyNet
+                // connection is no longer needed.
+                initializePlayer(contentUri);
+                addPlayerErrorListener();
+
             } catch (IllegalArgumentException e) {
                 Log.e(TAG, "Error detected in the input parameters.", e);
                 this.finish();
@@ -312,23 +319,7 @@ public class PlayerActivity extends Activity {
         return new DefaultHttpDataSourceFactory(userAgent, bandwidthMeter);
     }
 
-    private final PolyNetConnectionListener polyNetConnectionListener = new PolyNetConnectionListener() {
-
-        @Override
-        public void onConnected(PolyNet polyNet, String polyNetManifestUrl) {
-            // When PolyNet is connected, we can initialize the player with polyNetManifestUrl or with polyNet.getPolyNetManifestUrl()
-            handleConnectSuccess(polyNet.getPolyNetManifestUrl());
-        }
-
-        @Override
-        public void onError(PolyNet polyNet, Throwable throwable) {
-            Log.e(TAG, "PolyNet error", throwable.getCause());
-        }
-
-    };
-
-    private final PolyNetMetricsRequestListener metricsRequestListener = new PolyNetMetricsRequestListener() {
-
+    private final PolyNetListener polyNetListener = new PolyNetListener() {
         @Override
         public void onBufferHealthRequest(PolyNet polyNet) {
             if (player != null) {
@@ -341,6 +332,11 @@ public class PlayerActivity extends Activity {
         }
 
         @Override
+        public void onMetrics(PolyNetMetrics polyNetMetrics) {
+            // Public metrics
+        }
+
+        @Override
         public void onDroppedFramesRequest(PolyNet polyNet) {
             // No need to implement it for ExoPlayer.
         }
@@ -349,5 +345,11 @@ public class PlayerActivity extends Activity {
         public void onPlayBackStartedRequest(PolyNet polyNet) {
             // No need to implement it for ExoPlayer.
         }
+
+        @Override
+        public void onError(PolyNet polyNet, Throwable throwable) {
+            Log.e(TAG, "PolyNet error", throwable.getCause());
+        }
+
     };
 }
