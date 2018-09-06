@@ -31,6 +31,7 @@ import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.widget.Toast;
 
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultLoadControl;
@@ -56,7 +57,8 @@ import com.system73.polynet.android.sample.R;
 import com.system73.polynet.android.sdk.PolyNet;
 import com.system73.polynet.android.sdk.PolyNetConfiguration;
 import com.system73.polynet.android.sdk.PolyNetListener;
-import com.system73.polynet.android.sdk.PolyNetMetrics;
+import com.system73.polynet.android.sdk.core.metrics.PolyNetMetrics;
+import com.system73.polynet.android.sdk.exception.PolyNetException;
 
 import java.net.CookieHandler;
 import java.net.CookieManager;
@@ -153,14 +155,13 @@ public class PlayerActivity extends Activity {
         if (polyNet == null) {
             try {
                 // Connect to PolyNet
-                PolyNetConfiguration configuration = PolyNetConfiguration.builder()
+                PolyNetConfiguration.Builder configurationBuilder = PolyNetConfiguration.builder()
                     .setManifestUrl(manifestUri.toString().trim())
                     .setChannelId(channelId.trim())
                     .setApiKey(apiKey.trim())
-                    .setContext(this)
-                    .build();
+                    .setContext(this);
 
-                polyNet = new PolyNet(configuration);
+                polyNet = new PolyNet(configurationBuilder.build());
 
                 contentUri = Uri.parse(polyNet.getLocalManifestUrl());
 
@@ -174,6 +175,11 @@ public class PlayerActivity extends Activity {
 
             } catch (IllegalArgumentException e) {
                 Log.e(TAG, "Error detected in the input parameters.", e);
+                Toast.makeText(this,e.getMessage(), Toast.LENGTH_LONG).show();
+                this.finish();
+            } catch (Exception e) {
+                Log.e(TAG, "Error detected in the input parameters.", e);
+                Toast.makeText(this,e.getMessage(), Toast.LENGTH_LONG).show();
                 this.finish();
             }
         }
@@ -347,9 +353,8 @@ public class PlayerActivity extends Activity {
         }
 
         @Override
-        public void onError(PolyNet polyNet, Throwable throwable) {
-            Log.e(TAG, "PolyNet error", throwable.getCause());
+        public void onError(PolyNet polyNet, PolyNetException e) {
+            Log.e(TAG, "PolyNet error", e);
         }
-
     };
 }
