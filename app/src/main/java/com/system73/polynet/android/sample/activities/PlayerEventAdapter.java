@@ -3,7 +3,6 @@ package com.system73.polynet.android.sample.activities;
 import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.PlaybackParameters;
 import com.google.android.exoplayer2.Player;
-import com.google.android.exoplayer2.Timeline;
 import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 
@@ -16,10 +15,6 @@ import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
  */
 
 public class PlayerEventAdapter implements Player.EventListener {
-    @Override
-    public void onTimelineChanged(Timeline timeline, Object manifest) {
-    }
-
     @Override
     public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
     }

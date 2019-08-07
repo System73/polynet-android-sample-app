@@ -118,7 +118,7 @@ public class PlayerActivity extends Activity {
 
         setContentView(R.layout.player_activity);
 
-        simpleExoPlayerView = (SimpleExoPlayerView) findViewById(R.id.player_view);
+        simpleExoPlayerView = findViewById(R.id.player_view);
         simpleExoPlayerView.setUseController(false);
         simpleExoPlayerView.requestFocus();
     }
@@ -164,8 +164,6 @@ public class PlayerActivity extends Activity {
                 polyNet = new PolyNet(configurationBuilder.build());
 
                 contentUri = Uri.parse(polyNet.getLocalManifestUrl());
-
-                polyNet.setDebugMode(true);
 
                 polyNet.setListener(polyNetListener);
                 // New integration flow: Player can be initialized here, waiting for polyNet
@@ -236,9 +234,11 @@ public class PlayerActivity extends Activity {
             TrackSelection.Factory adaptiveTrackSelectionFactory =
                     new AdaptiveTrackSelection.Factory(BANDWIDTH_METER);
             trackSelector = new DefaultTrackSelector(adaptiveTrackSelectionFactory);
-            DefaultLoadControl loadControl = new DefaultLoadControl(new DefaultAllocator(true, C.DEFAULT_BUFFER_SEGMENT_SIZE), BUFFER_MIN, BUFFER_MAX,
-                    DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS, DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS);
-            player = ExoPlayerFactory.newSimpleInstance(new DefaultRenderersFactory(this), trackSelector, loadControl);
+            DefaultLoadControl.Builder builder = new DefaultLoadControl.Builder()
+                .setAllocator(new DefaultAllocator(true, C.DEFAULT_BUFFER_SEGMENT_SIZE))
+                .setBufferDurationsMs(BUFFER_MIN, BUFFER_MAX, DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS, DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS);
+            DefaultLoadControl loadControl = builder.createDefaultLoadControl();
+            player = ExoPlayerFactory.newSimpleInstance(this, new DefaultRenderersFactory(this), trackSelector, loadControl);
             addPlayBackStartedListener();
             setDroppedFramesListener();
             addPlayerErrorListener();
