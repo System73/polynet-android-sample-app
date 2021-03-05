@@ -3,6 +3,7 @@ package com.system73.polynet.android.sample.activities;
 import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.PlaybackParameters;
 import com.google.android.exoplayer2.Player;
+import com.google.android.exoplayer2.analytics.AnalyticsListener;
 import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 
@@ -14,7 +15,7 @@ import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
  * https://github.com/google/ExoPlayer
  */
 
-public class PlayerEventAdapter implements Player.EventListener {
+public class PlayerEventAdapter implements Player.EventListener, AnalyticsListener {
     @Override
     public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
     }

@@ -27,31 +27,18 @@ import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.support.annotation.NonNull;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.widget.Toast;
 
-import com.google.android.exoplayer2.C;
-import com.google.android.exoplayer2.DefaultLoadControl;
-import com.google.android.exoplayer2.DefaultRenderersFactory;
+import androidx.annotation.NonNull;
+
 import com.google.android.exoplayer2.ExoPlaybackException;
-import com.google.android.exoplayer2.ExoPlayerFactory;
+import com.google.android.exoplayer2.MediaItem;
 import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.SimpleExoPlayer;
-import com.google.android.exoplayer2.source.MediaSource;
-import com.google.android.exoplayer2.source.hls.HlsMediaSource;
-import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection;
-import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
-import com.google.android.exoplayer2.trackselection.TrackSelection;
-import com.google.android.exoplayer2.ui.SimpleExoPlayerView;
-import com.google.android.exoplayer2.upstream.DataSource;
-import com.google.android.exoplayer2.upstream.DefaultAllocator;
-import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
-import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
-import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory;
-import com.google.android.exoplayer2.upstream.HttpDataSource;
+import com.google.android.exoplayer2.analytics.AnalyticsListener;
+import com.google.android.exoplayer2.ui.PlayerView;
 import com.google.android.exoplayer2.util.Util;
 import com.system73.polynet.android.sample.R;
 import com.system73.polynet.android.sdk.PolyNet;
@@ -76,10 +63,6 @@ public class PlayerActivity extends Activity {
     public static final String CHANNEL_ID = "channel_id";
     public static final String API_KEY = "api_key";
 
-    public static final int BUFFER_MIN = 30000;
-    public static final int BUFFER_MAX = 30000;
-
-    private static final DefaultBandwidthMeter BANDWIDTH_METER = new DefaultBandwidthMeter();
     private static final CookieManager DEFAULT_COOKIE_MANAGER;
 
     static {
@@ -87,17 +70,13 @@ public class PlayerActivity extends Activity {
         DEFAULT_COOKIE_MANAGER.setCookiePolicy(CookiePolicy.ACCEPT_ORIGINAL_SERVER);
     }
 
-    private Handler mainHandler;
-    private SimpleExoPlayerView simpleExoPlayerView;
+    private PlayerView simpleExoPlayerView;
 
     private SimpleExoPlayer player = null;
-    private DefaultTrackSelector trackSelector;
 
     private boolean shouldAutoPlay;
 
     private Uri contentUri;
-
-    private String userAgent = "ExoPlayerPolyNetSample";
 
     private PolyNet polyNet;
 
@@ -111,7 +90,6 @@ public class PlayerActivity extends Activity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         shouldAutoPlay = true;
-        mainHandler = new Handler();
         if (CookieHandler.getDefault() != DEFAULT_COOKIE_MANAGER) {
             CookieHandler.setDefault(DEFAULT_COOKIE_MANAGER);
         }
@@ -168,7 +146,7 @@ public class PlayerActivity extends Activity {
                 polyNet.setListener(polyNetListener);
                 // New integration flow: Player can be initialized here, waiting for polyNet
                 // connection is no longer needed.
-                initializePlayer(contentUri);
+                initializePlayer();
                 addPlayerErrorListener();
 
             } catch (IllegalArgumentException e) {
@@ -218,32 +196,15 @@ public class PlayerActivity extends Activity {
 
     // Internal methods
 
-    private void handleConnectSuccess(final String polyNetManifestUrl) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                // When PolyNet is connected, use the PolyNetManifestUrl to initialize the player
-                Uri contentUri = Uri.parse(polyNetManifestUrl);
-                initializePlayer(contentUri);
-            }
-        });
-    }
-
-    private void initializePlayer(final Uri contentUri) {
+    private void initializePlayer() {
         if (player == null) {
-            TrackSelection.Factory adaptiveTrackSelectionFactory =
-                    new AdaptiveTrackSelection.Factory(BANDWIDTH_METER);
-            trackSelector = new DefaultTrackSelector(adaptiveTrackSelectionFactory);
-            DefaultLoadControl.Builder builder = new DefaultLoadControl.Builder()
-                .setAllocator(new DefaultAllocator(true, C.DEFAULT_BUFFER_SEGMENT_SIZE))
-                .setBufferDurationsMs(BUFFER_MIN, BUFFER_MAX, DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS, DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS);
-            DefaultLoadControl loadControl = builder.createDefaultLoadControl();
-            player = ExoPlayerFactory.newSimpleInstance(this, new DefaultRenderersFactory(this), trackSelector, loadControl);
+            player = new SimpleExoPlayer.Builder(this).build();
+            MediaItem mediaItem = MediaItem.fromUri(contentUri);
+            player.setMediaItem(mediaItem);
             addPlayBackStartedListener();
             setDroppedFramesListener();
             addPlayerErrorListener();
-            MediaSource mediaSource = new HlsMediaSource(contentUri, buildDataSourceFactory(true), mainHandler, new AdaptiveMediaSourceEventAdapter());
-            player.prepare(mediaSource);
+            player.prepare();
             simpleExoPlayerView.setPlayer(player);
             player.setPlayWhenReady(shouldAutoPlay);
         }
@@ -263,9 +224,9 @@ public class PlayerActivity extends Activity {
     }
 
     private void setDroppedFramesListener() {
-        player.setVideoDebugListener(new VideoRendererEventAdapter() {
+        player.addListener(new PlayerEventAdapter() {
             @Override
-            public void onDroppedFrames(int count, long elapsed) {
+            public void onDroppedVideoFrames(AnalyticsListener.EventTime eventTime, int count, long elapsed) {
                 for (int n = 0; n < count; n++) {
                     if (polyNet != null) {
                         polyNet.reportDroppedFrame();
@@ -297,7 +258,6 @@ public class PlayerActivity extends Activity {
             shouldAutoPlay = player.getPlayWhenReady();
             player.release();
             player = null;
-            trackSelector = null;
         }
         if (polyNet != null) {
             polyNet.dispose();
@@ -305,36 +265,18 @@ public class PlayerActivity extends Activity {
         }
     }
 
-    /**
-     * Returns a new DataSource factory.
-     *
-     * @param useBandwidthMeter Whether to set {@link #BANDWIDTH_METER} as a listener to the new
-     *                          DataSource factory.
-     * @return A new DataSource factory.
-     */
-    private DataSource.Factory buildDataSourceFactory(boolean useBandwidthMeter) {
-        return buildDataSourceFactory(useBandwidthMeter ? BANDWIDTH_METER : null);
-    }
-
-    private DataSource.Factory buildDataSourceFactory(DefaultBandwidthMeter bandwidthMeter) {
-        return new DefaultDataSourceFactory(this, bandwidthMeter,
-                buildHttpDataSourceFactory(bandwidthMeter));
-    }
-
-    private HttpDataSource.Factory buildHttpDataSourceFactory(DefaultBandwidthMeter bandwidthMeter) {
-        return new DefaultHttpDataSourceFactory(userAgent, bandwidthMeter);
-    }
-
     private final PolyNetListener polyNetListener = new PolyNetListener() {
         @Override
         public void onBufferHealthRequest(PolyNet polyNet) {
-            if (player != null) {
-                // Report the buffer health only if we can compute it
-                long bufferPos = player.getBufferedPosition();
-                long currentPos = player.getCurrentPosition();
-                long bufferHealthInMs = bufferPos - currentPos;
-                polyNet.reportBufferHealth(bufferHealthInMs);
-            }
+            runOnUiThread(() -> {
+                if (player != null) {
+                    // Report the buffer health only if we can compute it
+                    long bufferPos = player.getBufferedPosition();
+                    long currentPos = player.getCurrentPosition();
+                    long bufferHealthInMs = bufferPos - currentPos;
+                    polyNet.reportBufferHealth(bufferHealthInMs);
+                }
+            });
         }
 
         @Override
