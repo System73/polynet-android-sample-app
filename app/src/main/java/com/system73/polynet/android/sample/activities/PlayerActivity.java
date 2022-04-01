@@ -34,9 +34,10 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 
 import com.google.android.exoplayer2.ExoPlaybackException;
+import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.MediaItem;
+import com.google.android.exoplayer2.PlaybackException;
 import com.google.android.exoplayer2.Player;
-import com.google.android.exoplayer2.SimpleExoPlayer;
 import com.google.android.exoplayer2.analytics.AnalyticsListener;
 import com.google.android.exoplayer2.ui.PlayerView;
 import com.google.android.exoplayer2.util.Util;
@@ -52,7 +53,7 @@ import java.net.CookieManager;
 import java.net.CookiePolicy;
 
 /**
- * An activity that plays media using {@link SimpleExoPlayer}.
+ * An activity that plays media using {@link ExoPlayer}.
  */
 public class PlayerActivity extends Activity {
 
@@ -70,9 +71,9 @@ public class PlayerActivity extends Activity {
         DEFAULT_COOKIE_MANAGER.setCookiePolicy(CookiePolicy.ACCEPT_ORIGINAL_SERVER);
     }
 
-    private PlayerView simpleExoPlayerView;
+    private PlayerView playerView;
 
-    private SimpleExoPlayer player = null;
+    private ExoPlayer player = null;
 
     private boolean shouldAutoPlay;
 
@@ -96,9 +97,9 @@ public class PlayerActivity extends Activity {
 
         setContentView(R.layout.player_activity);
 
-        simpleExoPlayerView = findViewById(R.id.player_view);
-        simpleExoPlayerView.setUseController(false);
-        simpleExoPlayerView.requestFocus();
+        playerView = findViewById(R.id.player_view);
+        playerView.setUseController(false);
+        playerView.requestFocus();
     }
 
     @Override
@@ -147,7 +148,6 @@ public class PlayerActivity extends Activity {
                 // New integration flow: Player can be initialized here, waiting for polyNet
                 // connection is no longer needed.
                 initializePlayer();
-                addPlayerErrorListener();
 
             } catch (IllegalArgumentException e) {
                 Log.e(TAG, "Error detected in the input parameters.", e);
@@ -189,64 +189,52 @@ public class PlayerActivity extends Activity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         // Show the controls on any key event.
-        simpleExoPlayerView.showController();
+        playerView.showController();
         // If the event was not handled then see if the player view can handle it as a media key event.
-        return super.dispatchKeyEvent(event) || simpleExoPlayerView.dispatchMediaKeyEvent(event);
+        return super.dispatchKeyEvent(event) || playerView.dispatchMediaKeyEvent(event);
     }
 
     // Internal methods
 
     private void initializePlayer() {
         if (player == null) {
-            player = new SimpleExoPlayer.Builder(this).build();
+            player = new ExoPlayer.Builder(this).build();
             MediaItem mediaItem = MediaItem.fromUri(contentUri);
             player.setMediaItem(mediaItem);
-            addPlayBackStartedListener();
-            setDroppedFramesListener();
-            addPlayerErrorListener();
+            addAnalyticsListener();
             player.prepare();
-            simpleExoPlayerView.setPlayer(player);
+            playerView.setPlayer(player);
             player.setPlayWhenReady(shouldAutoPlay);
         }
     }
 
-    private void addPlayBackStartedListener() {
-        player.addListener(new PlayerEventAdapter() {
+    private void addAnalyticsListener() {
+        player.addAnalyticsListener(new AnalyticsListener() {
             @Override
-            public void onPlayerStateChanged(boolean playWhenReady, int state) {
+            public void onPlaybackStateChanged(EventTime eventTime, int state) {
                 if (state == Player.STATE_READY) {
                     if (polyNet != null) {
                         polyNet.reportPlayBackStarted();
                     }
                 }
             }
-        });
-    }
 
-    private void setDroppedFramesListener() {
-        player.addListener(new PlayerEventAdapter() {
             @Override
-            public void onDroppedVideoFrames(AnalyticsListener.EventTime eventTime, int count, long elapsed) {
+            public void onDroppedVideoFrames(EventTime eventTime, int count, long elapsed) {
                 for (int n = 0; n < count; n++) {
                     if (polyNet != null) {
                         polyNet.reportDroppedFrame();
                     }
                 }
             }
-        });
-    }
 
-    private void addPlayerErrorListener() {
-        player.addListener(new PlayerEventAdapter() {
             @Override
-            public void onPlayerError(ExoPlaybackException error) {
-                switch (error.type) {
-                    case ExoPlaybackException.TYPE_SOURCE:
-                        // Restart the player
-                        releasePlayer();
-                        active = true;
-                        onShown();
-                        break;
+            public void onPlayerError(EventTime eventTime, PlaybackException error) {
+                if (error instanceof ExoPlaybackException && ((ExoPlaybackException) error).type == ExoPlaybackException.TYPE_SOURCE) {
+                    // Restart the player
+                    releasePlayer();
+                    active = true;
+                    onShown();
                 }
             }
         });
@@ -271,9 +259,7 @@ public class PlayerActivity extends Activity {
             runOnUiThread(() -> {
                 if (player != null) {
                     // Report the buffer health only if we can compute it
-                    long bufferPos = player.getBufferedPosition();
-                    long currentPos = player.getCurrentPosition();
-                    long bufferHealthInMs = bufferPos - currentPos;
+                    long bufferHealthInMs = player.getTotalBufferedDuration();
                     polyNet.reportBufferHealth(bufferHealthInMs);
                 }
             });
