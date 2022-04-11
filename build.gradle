@@ -18,7 +18,7 @@ allprojects {
         jcenter()
         google()
         maven {
-            url "https://<SYSTEM73_MAVEN_HOST>/repository/maven-all"
+            url "https://artifacts.s73cloud.com/repository/maven-s73-releases"
         }
     }
 }
