@@ -45,8 +45,10 @@ import com.google.android.exoplayer2.util.Util;
 import com.google.android.exoplayer2.video.VideoSize;
 import com.system73.polynet.android.sample.R;
 import com.system73.polynet.android.sdk.PolyNet;
+import com.system73.polynet.android.sdk.PolyNetAnalyticsListener;
 import com.system73.polynet.android.sdk.PolyNetConfiguration;
-import com.system73.polynet.android.sdk.PolyNetListener;
+import com.system73.polynet.android.sdk.PolyNetExoPlayerWrapper;
+import com.system73.polynet.android.sdk.PolyNetPlayerListener;
 import com.system73.polynet.android.sdk.core.metrics.PlayerState;
 import com.system73.polynet.android.sdk.core.metrics.PolyNetMetrics;
 import com.system73.polynet.android.sdk.exception.PolyNetException;
@@ -75,24 +77,35 @@ public class PlayerActivity extends Activity {
     }
 
     private StyledPlayerView playerView;
-
     private ExoPlayer player = null;
-
     private boolean shouldAutoPlay;
-
-    private Uri contentUri;
-
     private PolyNet polyNet;
 
     public static boolean isActive() {
         return active;
     }
 
-    /**
-     * Listeners
-     */
+     // Listeners
 
-    private final PolyNetListener polyNetListener = new PolyNetListener() {
+    /**
+     * Listener for analytics reported by the SDK
+     */
+    private final PolyNetAnalyticsListener polyNetAnalyticsListener = new PolyNetAnalyticsListener() {
+        @Override
+        public void onError(PolyNet polyNet, PolyNetException e) {
+            Log.e(TAG, "PolyNet error", e);
+        }
+
+        @Override
+        public void onMetrics(PolyNetMetrics polyNetMetrics) {
+            // Public metrics
+        }
+    };
+
+    /**
+     * Listener for metric requests by the SDK
+     */
+    private final PolyNetPlayerListener polyNetPlayerListener = new PolyNetPlayerListener() {
         @Override
         public void onPlayerStateRequest(PolyNet polyNet, final PlayerState oldPlayerState) {
             runOnUiThread(() -> {
@@ -130,11 +143,6 @@ public class PlayerActivity extends Activity {
         }
 
         @Override
-        public void onMetrics(PolyNetMetrics polyNetMetrics) {
-            // Public metrics
-        }
-
-        @Override
         public void onDroppedFramesRequest(PolyNet polyNet) {
             // No need to implement it for ExoPlayer.
         }
@@ -144,15 +152,14 @@ public class PlayerActivity extends Activity {
             // No need to implement it for ExoPlayer.
         }
 
-        @Override
-        public void onError(PolyNet polyNet, PolyNetException e) {
-            Log.e(TAG, "PolyNet error", e);
-        }
     };
 
+    /**
+     * Listener for analytics/events reported by ExoPlayer
+     */
     private final AnalyticsListener analyticsListener = new AnalyticsListener() {
         @Override
-        public void onPlaybackStateChanged(EventTime eventTime, int state) {
+        public void onPlaybackStateChanged(@NonNull EventTime eventTime, int state) {
             if (state == Player.STATE_READY) {
                 if (polyNet != null) {
                     polyNet.reportPlayBackStarted();
@@ -161,7 +168,7 @@ public class PlayerActivity extends Activity {
         }
 
         @Override
-        public void onDroppedVideoFrames(EventTime eventTime, int count, long elapsed) {
+        public void onDroppedVideoFrames(@NonNull EventTime eventTime, int count, long elapsed) {
             for (int n = 0; n < count; n++) {
                 if (polyNet != null) {
                     polyNet.reportDroppedFrame();
@@ -170,26 +177,31 @@ public class PlayerActivity extends Activity {
         }
 
         @Override
-        public void onPlayerError(EventTime eventTime, PlaybackException error) {
-            if (error instanceof ExoPlaybackException && ((ExoPlaybackException) error).type == ExoPlaybackException.TYPE_SOURCE) {
+        public void onSurfaceSizeChanged(@NonNull EventTime eventTime, int width, int height) {
+            polyNet.reportViewportSize(width, height);
+        }
+
+        @Override
+        public void onVideoSizeChanged(@NonNull EventTime eventTime, VideoSize videoSize) {
+            polyNet.reportVideoResolution(videoSize.width, videoSize.height);
+        }
+    };
+
+    /**
+     * Listener for errors reported by ExoPlayer
+     */
+    AnalyticsListener errorListener = new AnalyticsListener() {
+        @Override
+        public void onPlayerError(@NonNull EventTime eventTime, @NonNull PlaybackException error) {
+        if (error instanceof ExoPlaybackException &&
+                ((ExoPlaybackException) error).type == ExoPlaybackException.TYPE_SOURCE) {
                 // Restart the player
                 releasePlayer();
                 active = true;
                 onShown();
             }
         }
-
-        @Override
-        public void onSurfaceSizeChanged(EventTime eventTime, int width, int height) {
-            polyNet.reportViewportSize(width, height);
-        }
-
-        @Override
-        public void onVideoSizeChanged(EventTime eventTime, VideoSize videoSize) {
-            polyNet.reportVideoResolution(videoSize.width, videoSize.height);
-        }
     };
-
 
     // Activity lifecycle
 
@@ -241,28 +253,43 @@ public class PlayerActivity extends Activity {
             try {
                 // Connect to PolyNet
                 PolyNetConfiguration.Builder configurationBuilder = PolyNetConfiguration.builder()
-                    .setManifestUrl(manifestUri.toString().trim())
-                    .setChannelId(channelId.trim())
-                    .setApiKey(apiKey.trim())
-                    .setContext(this);
+                        .setManifestUrl(manifestUri.toString().trim())
+                        .setChannelId(channelId.trim())
+                        .setApiKey(apiKey.trim())
+                        .setContext(this);
 
                 polyNet = new PolyNet(configurationBuilder.build());
 
-                contentUri = Uri.parse(polyNet.getLocalManifestUrl());
+                initializePlayer(polyNet.getLocalManifestUrl());
 
-                polyNet.setListener(polyNetListener);
-                polyNet.reportPlayerName("ExoPlayer");
-                polyNet.reportPlayerVersion(ExoPlayerLibraryInfo.VERSION);
-                // New integration flow: Player can be initialized here, waiting for polyNet
-                // connection is no longer needed.
-                initializePlayer();
+                integratePlayerUsingPlugin();
+//                integratePlayerManually();
 
+                polyNet.setAnalyticsListener(polyNetAnalyticsListener);
             } catch (Exception e) {
                 Log.e(TAG, "Error detected in the input parameters.", e);
                 Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
                 this.finish();
             }
         }
+    }
+
+    /**
+     * Passing the player to the SDK using the plugin.
+     */
+    void integratePlayerUsingPlugin(){
+        polyNet.setPlayer(new PolyNetExoPlayerWrapper(player));
+    }
+
+    /**
+     * Manually passing the player metrics and info to the SDK
+     */
+    void integratePlayerManually(){
+        polyNet.reportPlayerName("exoplayer");
+        polyNet.reportPlayerVersion(ExoPlayerLibraryInfo.VERSION);
+        polyNet.setPlayerListener(polyNetPlayerListener);
+
+        player.addAnalyticsListener(analyticsListener);
     }
 
     @Override
@@ -300,7 +327,7 @@ public class PlayerActivity extends Activity {
 
     // Internal methods
 
-    private void initializePlayer() {
+    private void initializePlayer(String contentUri) {
         if (player == null) {
             player = new ExoPlayer.Builder(this).build();
             MediaItem mediaItem = MediaItem.fromUri(contentUri);
@@ -308,7 +335,7 @@ public class PlayerActivity extends Activity {
             player.prepare();
             playerView.setPlayer(player);
             player.setPlayWhenReady(shouldAutoPlay);
-            player.addAnalyticsListener(analyticsListener);
+            player.addAnalyticsListener(errorListener);
         }
     }
 
@@ -317,6 +344,7 @@ public class PlayerActivity extends Activity {
             active = false;
             shouldAutoPlay = player.getPlayWhenReady();
             player.removeAnalyticsListener(analyticsListener);
+            player.removeAnalyticsListener(errorListener);
             player.release();
             player = null;
             playerView.setPlayer(null);
