@@ -33,21 +33,21 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        TextView sampleAppVersionTextView = (TextView) findViewById(R.id.polynet_sample_app_version);
+        TextView sampleAppVersionTextView = findViewById(R.id.polynet_sample_app_version);
         sampleAppVersionTextView.setText(getString(R.string.sample_app_version_base_text) + BuildConfig.VERSION_NAME);
 
-        TextView polyNetSdkVersionTextView = (TextView) findViewById(R.id.polynet_sdk_version);
+        TextView polyNetSdkVersionTextView = findViewById(R.id.polynet_sdk_version);
         polyNetSdkVersionTextView.setText(getString(R.string.polynet_sdk_version_base_text) + com.system73.polynet.android.sdk.BuildConfig.VERSION_NAME);
 
-        TextView companyUrlTextView =(TextView)findViewById(R.id.company_url_text_view);
+        TextView companyUrlTextView = findViewById(R.id.company_url_text_view);
         companyUrlTextView.setClickable(true);
         companyUrlTextView.setMovementMethod(LinkMovementMethod.getInstance());
         String text = "<a href='http://" + getResources().getString(R.string.company_url) + "'> " + getResources().getString(R.string.company_url_label) + " </a>";
         companyUrlTextView.setText(Html.fromHtml(text));
 
-        manifestUrlText = (EditText) findViewById(R.id.manifest_url);
-        channelIdText = (EditText) findViewById(R.id.channel_id);
-        apiKeyText = (EditText) findViewById(R.id.api_key);
+        manifestUrlText = findViewById(R.id.manifest_url);
+        channelIdText = findViewById(R.id.channel_id);
+        apiKeyText = findViewById(R.id.api_key);
 
         channelDB = new ChannelDB(this);
 
