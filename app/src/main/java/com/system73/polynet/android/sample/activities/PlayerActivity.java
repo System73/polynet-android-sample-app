@@ -93,7 +93,7 @@ public class PlayerActivity extends Activity {
     private final PolyNetAnalyticsListener polyNetAnalyticsListener = new PolyNetAnalyticsListener() {
         @Override
         public void onError(PolyNet polyNet, PolyNetException e) {
-            Log.e(TAG, "PolyNet error", e);
+            Log.e(TAG, "Edge Intelligence SDK", e);
         }
 
         @Override
