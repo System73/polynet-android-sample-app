@@ -32,22 +32,22 @@ import android.view.KeyEvent;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.media3.common.MediaItem;
+import androidx.media3.common.MediaLibraryInfo;
+import androidx.media3.common.PlaybackException;
+import androidx.media3.common.Player;
+import androidx.media3.common.VideoSize;
+import androidx.media3.common.util.UnstableApi;
+import androidx.media3.common.util.Util;
+import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.analytics.AnalyticsListener;
+import androidx.media3.ui.PlayerView;
 
-import com.google.android.exoplayer2.ExoPlaybackException;
-import com.google.android.exoplayer2.ExoPlayer;
-import com.google.android.exoplayer2.ExoPlayerLibraryInfo;
-import com.google.android.exoplayer2.MediaItem;
-import com.google.android.exoplayer2.PlaybackException;
-import com.google.android.exoplayer2.Player;
-import com.google.android.exoplayer2.analytics.AnalyticsListener;
-import com.google.android.exoplayer2.ui.StyledPlayerView;
-import com.google.android.exoplayer2.util.Util;
-import com.google.android.exoplayer2.video.VideoSize;
 import com.system73.polynet.android.sample.R;
 import com.system73.polynet.android.sdk.PolyNet;
 import com.system73.polynet.android.sdk.PolyNetAnalyticsListener;
 import com.system73.polynet.android.sdk.PolyNetConfiguration;
-import com.system73.polynet.android.sdk.PolyNetExoPlayerWrapper;
+import com.system73.polynet.android.sdk.PolyNetExoPlayerMedia3Wrapper;
 import com.system73.polynet.android.sdk.PolyNetPlayerListener;
 import com.system73.polynet.android.sdk.core.metrics.PlayerState;
 import com.system73.polynet.android.sdk.core.metrics.PolyNetMetrics;
@@ -60,6 +60,7 @@ import java.net.CookiePolicy;
 /**
  * An activity that plays media using {@link ExoPlayer}.
  */
+@UnstableApi
 public class PlayerActivity extends Activity {
 
     public static boolean active = false;
@@ -76,7 +77,7 @@ public class PlayerActivity extends Activity {
         DEFAULT_COOKIE_MANAGER.setCookiePolicy(CookiePolicy.ACCEPT_ORIGINAL_SERVER);
     }
 
-    private StyledPlayerView playerView;
+    private PlayerView playerView;
     private ExoPlayer player = null;
     private boolean shouldAutoPlay;
     private PolyNet polyNet;
@@ -193,9 +194,8 @@ public class PlayerActivity extends Activity {
     AnalyticsListener errorListener = new AnalyticsListener() {
         @Override
         public void onPlayerError(@NonNull EventTime eventTime, @NonNull PlaybackException error) {
-        if (error instanceof ExoPlaybackException &&
-                ((ExoPlaybackException) error).type == ExoPlaybackException.TYPE_SOURCE) {
-                // Restart the player
+            if (error.errorCode >= PlaybackException.ERROR_CODE_IO_UNSPECIFIED
+                    && error.errorCode < PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED) {
                 releasePlayer();
                 active = true;
                 onShown();
@@ -278,7 +278,7 @@ public class PlayerActivity extends Activity {
      * Passing the player to the SDK using the plugin.
      */
     void integratePlayerUsingPlugin(){
-        polyNet.setPlayer(new PolyNetExoPlayerWrapper(player));
+        polyNet.setPlayer(new PolyNetExoPlayerMedia3Wrapper(player));
     }
 
     /**
@@ -286,7 +286,7 @@ public class PlayerActivity extends Activity {
      */
     void integratePlayerManually(){
         polyNet.reportPlayerName("exoplayer");
-        polyNet.reportPlayerVersion(ExoPlayerLibraryInfo.VERSION);
+        polyNet.reportPlayerVersion(MediaLibraryInfo.VERSION);
         polyNet.setPlayerListener(polyNetPlayerListener);
 
         player.addAnalyticsListener(analyticsListener);
