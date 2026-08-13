@@ -9,7 +9,7 @@ android {
         targetSdkVersion 36
         multiDexEnabled true
         versionCode 1
-        versionName "1.10.0"
+        versionName "1.11.0"
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
     buildTypes {
@@ -39,7 +39,7 @@ dependencies {
     implementation 'androidx.media3:media3-exoplayer-dash:1.4.1'
     implementation 'androidx.media3:media3-exoplayer-hls:1.4.1'
     implementation 'androidx.media3:media3-ui:1.4.1'
-    implementation 'com.system73.polynet:polynet-android-sdk:3.20.3'
+    implementation 'com.system73.polynet:polynet-android-sdk:3.20.5'
     implementation 'androidx.multidex:multidex:2.0.1'
     testImplementation 'junit:junit:4.13.2'
 }
