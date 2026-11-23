@@ -24,14 +24,22 @@
 package com.system73.polynet.android.sample.activities;
 
 import android.app.Activity;
+import android.app.PictureInPictureParams;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.Rect;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
+import android.util.Rational;
 import android.view.KeyEvent;
+import android.view.View;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaLibraryInfo;
 import androidx.media3.common.PlaybackException;
@@ -81,6 +89,11 @@ public class PlayerActivity extends Activity {
     private ExoPlayer player = null;
     private boolean shouldAutoPlay;
     private PolyNet polyNet;
+    private boolean isStopped = false;
+
+    // Android rejects PiP aspect ratios outside the 1:2.39 to 2.39:1 range.
+    private static final Rational PIP_MIN_ASPECT_RATIO = new Rational(100, 239);
+    private static final Rational PIP_MAX_ASPECT_RATIO = new Rational(239, 100);
 
     public static boolean isActive() {
         return active;
@@ -203,6 +216,16 @@ public class PlayerActivity extends Activity {
         }
     };
 
+    /**
+     * Keeps the Picture-in-Picture window aspect ratio in sync with the video.
+     */
+    private final Player.Listener pipVideoSizeListener = new Player.Listener() {
+        @Override
+        public void onVideoSizeChanged(@NonNull VideoSize videoSize) {
+            updatePictureInPictureParams();
+        }
+    };
+
     // Activity lifecycle
 
     @Override
@@ -218,6 +241,20 @@ public class PlayerActivity extends Activity {
         playerView = findViewById(R.id.player_view);
         playerView.setUseController(false);
         playerView.requestFocus();
+
+        // The video surface is resized after the video size is known, so refresh the PiP
+        // source rect hint whenever its layout changes.
+        View videoSurfaceView = playerView.getVideoSurfaceView();
+        if (videoSurfaceView != null) {
+            videoSurfaceView.addOnLayoutChangeListener(
+                    (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+                        boolean boundsChanged = left != oldLeft || top != oldTop
+                                || right != oldRight || bottom != oldBottom;
+                        if (boundsChanged && !isInPipMode()) {
+                            updatePictureInPictureParams();
+                        }
+                    });
+        }
     }
 
     @Override
@@ -231,6 +268,7 @@ public class PlayerActivity extends Activity {
     public void onStart() {
         super.onStart();
         active = true;
+        isStopped = false;
         if (Util.SDK_INT > 23) {
             onShown();
         }
@@ -304,9 +342,112 @@ public class PlayerActivity extends Activity {
     public void onStop() {
         super.onStop();
         active = false;
+        isStopped = true;
         if (Util.SDK_INT > 23) {
             releasePlayer();
         }
+    }
+
+    // Picture-in-Picture
+
+    @Override
+    public void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        // On Android 12+ the system enters PiP automatically (setAutoEnterEnabled).
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            enterPictureInPicture();
+        }
+    }
+
+    @Override
+    @SuppressWarnings("deprecation") // Single-arg variant is the one called on API 24-25.
+    public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode);
+        if (!isInPictureInPictureMode && isStopped) {
+            // The user dismissed the PiP window: close the player instead of leaving it in Recents.
+            finishAndRemoveTask();
+        }
+    }
+
+    // PiP needs API 24, but this app's minSdkVersion is 23.
+    private boolean isPictureInPictureSupported() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
+                && getPackageManager().hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE);
+    }
+
+    private boolean isInPipMode() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode();
+    }
+
+    private void enterPictureInPicture() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            return;
+        }
+        if (player == null || !isPictureInPictureSupported() || isInPictureInPictureMode()) {
+            return;
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                enterPictureInPictureMode(buildPictureInPictureParams());
+            } else {
+                enterPictureInPictureMode();
+            }
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            Log.w(TAG, "Unable to enter Picture-in-Picture mode", e);
+        }
+    }
+
+    private void updatePictureInPictureParams() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isPictureInPictureSupported()) {
+            try {
+                setPictureInPictureParams(buildPictureInPictureParams());
+            } catch (IllegalStateException | IllegalArgumentException e) {
+                Log.w(TAG, "Unable to update Picture-in-Picture params", e);
+            }
+        }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    private PictureInPictureParams buildPictureInPictureParams() {
+        PictureInPictureParams.Builder builder = new PictureInPictureParams.Builder();
+        Rational aspectRatio = getPictureInPictureAspectRatio();
+        if (aspectRatio != null) {
+            builder.setAspectRatio(aspectRatio);
+        }
+        // Use the video surface (sized to the video's aspect ratio), not the whole PlayerView,
+        // so the PiP animation starts from the visible video instead of the full screen.
+        View hintView = playerView != null ? playerView.getVideoSurfaceView() : null;
+        if (hintView == null) {
+            hintView = playerView;
+        }
+        Rect sourceRectHint = new Rect();
+        if (hintView != null && hintView.getGlobalVisibleRect(sourceRectHint)) {
+            builder.setSourceRectHint(sourceRectHint);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setAutoEnterEnabled(player != null);
+        }
+        return builder.build();
+    }
+
+    @Nullable
+    private Rational getPictureInPictureAspectRatio() {
+        if (player == null) {
+            return null;
+        }
+        VideoSize videoSize = player.getVideoSize();
+        if (videoSize.width <= 0 || videoSize.height <= 0) {
+            return null;
+        }
+        Rational ratio = new Rational(
+                Math.round(videoSize.width * videoSize.pixelWidthHeightRatio), videoSize.height);
+        if (ratio.compareTo(PIP_MIN_ASPECT_RATIO) < 0) {
+            return PIP_MIN_ASPECT_RATIO;
+        }
+        if (ratio.compareTo(PIP_MAX_ASPECT_RATIO) > 0) {
+            return PIP_MAX_ASPECT_RATIO;
+        }
+        return ratio;
     }
 
     @Override
@@ -336,6 +477,8 @@ public class PlayerActivity extends Activity {
             playerView.setPlayer(player);
             player.setPlayWhenReady(shouldAutoPlay);
             player.addAnalyticsListener(errorListener);
+            player.addListener(pipVideoSizeListener);
+            updatePictureInPictureParams();
         }
     }
 
@@ -345,9 +488,11 @@ public class PlayerActivity extends Activity {
             shouldAutoPlay = player.getPlayWhenReady();
             player.removeAnalyticsListener(analyticsListener);
             player.removeAnalyticsListener(errorListener);
+            player.removeListener(pipVideoSizeListener);
             player.release();
             player = null;
             playerView.setPlayer(null);
+            updatePictureInPictureParams();
         }
         if (polyNet != null) {
             polyNet.dispose();
